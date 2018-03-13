@@ -1,33 +1,39 @@
 
-update.list <- function(object, ...) {
-    dots <- dots_list(...)
-    purrr:::list_recurse(object, dots, function(x, y) y)
-}
-registerS3method("update", "list",  "update.list")
-
-## deep_get <- function(object, keys) {
-##     for (k in keys) {
-##         obj <- object[[k]]
-##         if (is.null(obj))
-##             return(NULL)
-##     }
-##     obj
-## }
-
-or <- function(x, y = NULL) {
-    if (is.null(x) || (is.logical(x) && x))
-        if (is.null(y)) FALSE
+or <- function(x, y = NULL, z = NULL) {
+    if (is.null(x) || (is.logical(x) && !x))
+        if (is.null(y) || (is.logical(y) && !y))
+            if (is.null(z)) FALSE
+            else z
         else y
     else x
 }
 
-assoc <- function(object, key, val) {
-    object[[key]] <- val
-    object
-}
+## update.list <- function(object, ...) {
+##     dots <- dots_list(...)
+##     purrr:::list_recurse(object, dots, function(x, y) y)
+## }
+## registerS3method("update", "list",  "update.list")
+
+## ## deep_get <- function(object, keys) {
+## ##     for (k in keys) {
+## ##         obj <- object[[k]]
+## ##         if (is.null(obj))
+## ##             return(NULL)
+## ##     }
+## ##     obj
+## ## }
+
+## ##' @export
+## assoc <- function(object, key, val) {
+##     object[[key]] <- val
+##     object
+## }
 
 ## x[["a"]][["b"]] doesn't create nested on non-existent objects
-assoc_in <- function(object, keys, val) {
+##' @export
+assoc <- function(object, keys = NULL, val = NULL, ...) {
+    if (is.null(keys))
+        return(object)
     k <- keys[[1]]
     if (length(keys) > 1) {
         obj <- object[[k]]
@@ -37,9 +43,10 @@ assoc_in <- function(object, keys, val) {
     } else {
         object[[k]] <- val
     }
-    object
+    assoc(object, ...)
 }
 
+##' @export
 update_in <- function(object, keys, .f, ...) {
     k <- keys[[1]]
     if (length(keys) > 1) {
@@ -75,35 +82,6 @@ get_args <- function(x) {
     }
 }
 
-
-mlmap <- function(x, .f, ...) {
-    if (is.function(.x))
-        return(mlfunction("mlmap"))
-    switch(x$op,
-           describe = {
-               descr <- ll(doc = "Generic Mapper.", 
-                           handles = c("run", "map", "describe"),
-                           responds = c("next"))
-           }, 
-           run =  {
-               .f <- as_mapper(.f, ...)
-               data <- x$data
-               cont <- TRUE
-               i <- 1
-               N <- length(data)
-               while (cont && i <= N) {
-                   x <- mlcontinue(update(x, data = .f(data[[i]]),
-                                           map.i = i, map.N = N))
-                   cont <- switch(x$ret,
-                                  done = TRUE,
-                                  stop = FALSE,
-                                  TRUE)
-               }
-               ml_return(x)
-           },
-           mlcontinue(.x))
-}
-
 env_parents <- function(env = caller_env(), last = global_env()) {
     env <- get_env(env)
     out <- list()
@@ -129,23 +107,6 @@ env_parent_names <- function(env = caller_env()) {
 
 env_parents_names <- function(env = caller_env(), last = global_env()) {
     sapply(env_parents(env, last), env_names, simplify = FALSE)
-}
-
-mlstack <- function(x) {
-    if (is.function(x)) {
-        mlstack(environment(x)[["MLSTACK.."]])
-    } else {
-        class(x) <- "mlstack"
-        x
-    }
-}
-
-print.mlstack <- function(x, ...) {
-    str(unclass(x), vec.len = 50, width = 300, no.list = TRUE)
-}
-
-is.mlstack <- function(x) {
-    identical(class(x), "mlstack")
 }
 
 add_args_to_stack <- function(stack, args) {
@@ -253,6 +214,7 @@ invoke_fns <- function(x, obj, fns, fn_type, ...) {
 model_name <- function(x) {
     pluck(x, "model", "name", .default = "unknown")
 }
+
 pos <- function(x) {
     x[["cxtenv"]][["pos"]]
 }
@@ -270,6 +232,7 @@ prev_stack_name <- function(x) {
     else ""
 }
 
+##' @export
 mlcalls <- function(add_x = FALSE) {
     envs <- rlang:::ctxt_stack_envs()
     wmls <- map_lgl(envs, ~ exists("._ml_marker_.", envir = .x, inherits = FALSE))
@@ -291,6 +254,7 @@ mlcalls <- function(add_x = FALSE) {
     structure(out, class = "mlcalls")
 }
 
+##' @export
 print.mlcalls <- function(x, ...) {
     str(unclass(x), vec.len = 50, width = 300)
 }

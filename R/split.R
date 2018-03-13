@@ -1,4 +1,5 @@
 
+##' @export
 mlsample <- function(x = identity, sample_n = NULL, sample_prop = NULL, sample_replace = FALSE, ...) {
     if (is.function(x))
         return(mlfunction("mlsplit"))
@@ -16,6 +17,7 @@ mlsample <- function(x = identity, sample_n = NULL, sample_prop = NULL, sample_r
     mlcontinue(data_subset(x, sub))
 }
 
+##' @export
 mlsplit <- function(x = identity, nsplits = NULL, split_props = NULL,
                     split_by = NULL, ids = NULL, ...) {
     if (is.function(x))
@@ -76,9 +78,11 @@ mlsplit <- function(x = identity, nsplits = NULL, split_props = NULL,
     }
 
     ## dispatch for non-empty indexes
+    old_split <- x[["split"]]
     xout <- mllist()
     for (l in names(ix)) {
         if (length(ix[[l]]) > 0) {
+            x[["split"]] <- ix
             val <- mldispatch(data_subset(x, ix[[l]]),
                               branch = l,
                               start_pos = x[["cxtenv"]][["pos"]] + 1L)

@@ -1,7 +1,6 @@
-library(magrittr)
-library(purrr)
-library(rlang)
-library(fastdigest)
+##' @import rlang
+##' @importFrom purrr map map_chr map_lgl map_int map_dbl 
+##' @importFrom fastdigest fastdigest
 
 
 ## utils
@@ -19,7 +18,7 @@ merge_lists <- function(...) {
 }
 
 ml_return <- function(x, ret = x$ret, ...) {
-    update(x, ret = ret, ...)
+    update_in(x, "ret", ret, ...)
 }
 
 `_mlhints` <- new.env()
@@ -55,6 +54,7 @@ invoke_stack_item <- function(item, x, args = NULL, env) {
     }
 }
 
+##' @export
 mlcontinue <- function(x, op = x[["op"]]) {
     ._ml_marker_. <- "mlcontinue"
     x[["op"]] <- op
@@ -90,7 +90,7 @@ mlcontinue <- function(x, op = x[["op"]]) {
             tx <- assoc_in(x, c("cxtenv", "stack"), curitem)
             tx <- mldispatch(tx, op, branch = curname, start_pos = 1)
             tx <- assoc_in(tx, c("cxtenv", "stack"), x[["cxtenv"]][["stack"]])
-            assoc(tx, "full-branch", branch)
+            assoc_in(tx, "full-branch", branch)
         } else {
             curargs <- item_args(curitem)
             all_args <- cxtenv[["all_args"]]
@@ -103,6 +103,7 @@ mlcontinue <- function(x, op = x[["op"]]) {
     assoc_in(xnew, c("cxtenv", "pos"), pos)
 }
 
+##' @export
 mldispatch <- function(x, op = x[["op"]], branch = NULL, start_pos = 1L) {
     ._ml_marker_. <- "mldispatch"
     old_op <- x[["op"]]
@@ -110,16 +111,22 @@ mldispatch <- function(x, op = x[["op"]], branch = NULL, start_pos = 1L) {
     old_full_branch <- x[["full-branch"]]
     branch <- or(branch, model_name(x))
     full_branch <- paste(old_full_branch, branch, sep = ":")
-    x <- update(x, op = op, branch = branch, `full-branch` = full_branch)
-    x <- assoc_in(x, c("cxtenv", "pos"), start_pos - 1L)
-    x <- assoc_in(x, c("start_time", op), Sys.time())
-    x <- assoc_in(x, c("op-markers", op, full_branch), FALSE)
+    x <- assoc_in(x,
+                  "op", op,
+                  "branch", branch,
+                  "full-branch", full_branch,
+                  c("cxtenv", "pos"), start_pos - 1L, 
+                  c("start_time", op), Sys.time(), 
+                  c("op-markers", op, full_branch), FALSE)
     x <- mlcontinue(x)
-    update(x, op = old_op, branch = old_branch, `full-branch` = old_full_branch)
+    assoc_in(x,
+             "op", old_op,
+             "branch", old_branch,
+             "full-branch", old_full_branch)
 }
 
-dispatcher_fn <- function(name = NULL, args, parent_env, stack, stack_args = list()) {
-    env <- child_env(parent_env, MLSTACK.. = stack, MLARGS.. = stack_args)
+dispatcher_fn <- function(name = NULL, args, parent_env, stack, call_args = list()) {
+    env <- child_env(parent_env, MLSTACK.. = stack, MLARGS.. = call_args)
     xname <- names(args)[[1]]
     if (is.null(xname))
         stop("first arg must be named")
@@ -128,12 +135,12 @@ dispatcher_fn <- function(name = NULL, args, parent_env, stack, stack_args = lis
     new_function(
         args = args,
         body = expr(
-            ## ARGS are picked by mlfunction and add_cxtenv
+            ## ARGS are picked by mlfunction and init_context
             if (is.function(!!sym(xname))) {
                 mlfunction(!!name)
             } else {
                 x <- ml_ingest(!!sym(xname))
-                x <- add_cxtenv(x)
+                x <- ml_init_context(x)
                 x <- mldispatch(x, "init")
                 x <- mldispatch(x, "run")
                 mldispatch(x, "finish")
@@ -141,6 +148,7 @@ dispatcher_fn <- function(name = NULL, args, parent_env, stack, stack_args = lis
         env = env)
 }
 
+##' @export
 mlfunction <- function(name = NULL,
                        env = caller_env(2), 
                        call = caller_call(),
@@ -166,37 +174,43 @@ mlfunction <- function(name = NULL,
                   args = all_args,
                   parent_env = env,
                   stack = c(upstack, mystack),
-                  stack_args = call_args)
+                  call_args = call_args)
 }
 
-add_cxtenv <- function(x, env = env_parent(caller_env()),
+##' Internal functions
+##'
+##' These functions are exported due to the nature of the `multiline` dispatch.
+##'
+##' @param x ml context
+##' @param env env containing MLSTACK..
+##' @param stack MLSTACK..
+##' @param call caller call
+##' @param fn caller fn
+##' @rdname internal
+##' @keywords internal
+##' @export
+ml_init_context <- function(x, env = env_parent(caller_env()),
                        stack = env_get(env, "MLSTACK.."),
                        call = caller_call(),
                        fn = caller_fn()) {
-    ## env <- env_parent(caller_env())
-    ## stack <- env_get(env, "MLSTACK..")
-    ## call <- caller_call()
-    ## fn <- caller_fn()
     fn_args <- remove_dots(fn_fmls(fn))
     call_args <- call_args(match.call(fn, call, envir = env))
+
+    ## seed
+    seed <- or(call_args[["random_seed"]], fn_args[["random_seed"]], 0)
+    if (is.list(seed)) do.call(set.seed, seed)
+    else set.seed(seed)
+    x[["seed"]] <- seed
+
+    ## cxtenv
     args <- modifyList(fn_args, call_args)
     cxt <- ll(env = env,
               all_args = as.list(args),
               call_args = call_args, 
               stack = stack)
     x[["cxtenv"]] <- cxt
+    
     x
-}
-
-nocont <- function(f) {
-    function(...) {
-        args <- list(...)
-        old_ic <- args[[1]][["cxtenv"]][["inhibit_continuation"]]
-        args[[1]][["cxtenv"]][["inhibit_continuation"]] <- TRUE
-        x <- do.call(f, args)
-        x[["cxtenv"]][["inhibit_continuation"]] <- old_ic
-        x
-    }
 }
 
 normalize_args <- function(args) {
@@ -211,6 +225,19 @@ normalize_args <- function(args) {
 
 ## user level
 
+##' @export
+nocont <- function(f) {
+    function(...) {
+        args <- list(...)
+        old_ic <- args[[1]][["cxtenv"]][["inhibit_continuation"]]
+        args[[1]][["cxtenv"]][["inhibit_continuation"]] <- TRUE
+        x <- do.call(f, args)
+        x[["cxtenv"]][["inhibit_continuation"]] <- old_ic
+        x
+    }
+}
+
+##' @export
 mlfn <- function(x = identity, ..., .env = caller_env(), .name = "anonymous") {
     dots <- exprs(...)
     len <- length(dots)
@@ -242,6 +269,7 @@ mlfn <- function(x = identity, ..., .env = caller_env(), .name = "anonymous") {
     do.call(fn, ll(x = x), envir = .env) 
 }
 
+##' @export
 ml <- function(x = identity, ..., .name = "ml") {
     ## args <-
     ##     if (!missing(x)) {
@@ -261,21 +289,25 @@ ml <- function(x = identity, ..., .name = "ml") {
                   stack = stack)
 }
 
-mlrepeat <- function(x = identity, repeat_n = 1, ...) {
+##' @export
+mlrepeat <- function(x = identity, nrepeats = 10, ...) {
     if (is.function(x))
         return(mlfunction("mlrepeat"))
-    xout <- list()
+    xout <- mllist()
+    old_repeat <- x[["repeat"]]
     for (i in seq_len(nrepeats)) {
         branch <- paste0("repeat", i)
-        tx <- mldispatch(x, branch = branch, x[["cxtenv"]][["pos"]] + 1L)
+        x[["repeat"]] <- i
+        tx <- mldispatch(x, branch = branch, start_pos = x[["cxtenv"]][["pos"]] + 1L)
         xout <- modifyList(xout, tx)
     }
-    xout
+    assoc_in(xout, "repeat", old_repeat)
 }
 
 
-### mllist
+### MLLIST
 
+##' @export
 mllist <- function(x = NULL) {
     set_attrs(as.list(x), class = c("mllist", "list"))
 }
@@ -284,10 +316,14 @@ is.mllist <- function(x) {
     is.list(x) && "mllist" %in% class(x)
 }
 
+##' @export
 print.mllist <- function(x, ...) {
     str(unclass(x), vec.len = 50, width = 300, no.list = TRUE)
 }
 
+##' @rdname internal
+##' @keywords internal
+##' @export
 ml_ingest <- function(x = identity, ...) {
     if (is.function(x)) {
         mlfunction("ml_ingest")
@@ -323,7 +359,7 @@ data_nrow <- function(x) {
 data_subset <- function(x, subset) {
     data <- x[["data"]]
     if (is.data.frame(x)) {
-        update(x, data = data[subset, ])
+        assoc_in(x, "data", data[subset, ])
     } else if (is.list(data)) {
         data <-
             map(data, function(e) {
@@ -333,8 +369,31 @@ data_subset <- function(x, subset) {
                 else
                     e[subset]   
             })
-        update(x, data = data)
+        assoc_in(x, "data", data)
     } else {
         stop("'data' component must be a data.frame or a list")        
     }
+}
+
+
+
+### STACK
+
+##' @export
+mlstack <- function(x) {
+    if (is.function(x)) {
+        mlstack(environment(x)[["MLSTACK.."]])
+    } else {
+        class(x) <- "mlstack"
+        x
+    }
+}
+
+##' @export
+print.mlstack <- function(x, ...) {
+    str(unclass(x), vec.len = 50, width = 300, no.list = TRUE)
+}
+
+is.mlstack <- function(x) {
+    identical(class(x), "mlstack")
 }

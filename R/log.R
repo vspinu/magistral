@@ -1,3 +1,4 @@
+##' @include pipeline.R
 
 
 ## UTILITIES
@@ -32,6 +33,7 @@ log_string <- function(x, obj) {
 
 ## LOGGERS
 
+##' @export
 logger_txt <- function(x, obj, output_dir, ...) {
     file <- paste0(output_dir(x, output_dir, "log"), "/current.txt")
     msg <- log_string(x, obj)
@@ -39,11 +41,13 @@ logger_txt <- function(x, obj, output_dir, ...) {
     invisible(x)
 }
 
+##' @export
 logger_stdout <- function(x, obj, ...) {
     cat(log_string(x, obj))
     invisible(x)
 }
  
+##' @export
 logger_R <- function(x, obj, output_dir, ...) {
     log_file <- paste0(output_dir(x, output_dir, "log"), "/current.R")
     con <- textConnection("val", "w", local = TRUE)
@@ -65,18 +69,19 @@ invoke_loggers <- function(x, msg, loggers, output_dir, ...) {
             else match.fun(paste0("logger_", l), descend = F)
         x <- do.call(fn, list(x = x, obj = obj, output_dir = output_dir, ...))
     }
-    assoc_in(x, c("log", "prev_time"), Sys.time())
+    assoc(x, c("log", "prev_time"), Sys.time())
 }
 
-ml_log <- function(x = identity, msg = list(),
+##' @export
+mllog <- function(x = identity, msg = list(),
                    loggers = c("stdout", "R"),
                    output_dir = "../output/", ...) {
     if (is.function(x))
-        return(mlfunction("ml_log"))
+        return(mlfunction("mllog"))
     mlcontinue(
         switch(x$op,
                describe = {
-                   x$describe[["ml_log"]] <-
+                   x$describe[["mllog"]] <-
                        ll(doc = "Generic Logger",
                           handles = c("describe", "init", "run", "log"))
                    x
@@ -84,7 +89,7 @@ ml_log <- function(x = identity, msg = list(),
                init = {
                    if (is.null(x[["log"]][["initialized"]])) {
                        start_time <- x[["start_time"]][["init"]]
-                       x <- assoc_in(x, c("log", "prev_time"), start_time)
+                       x <- assoc(x, c("log", "prev_time"), start_time)
                        msg <- sprintf("Started '%s' at %s", model_name(x), start_time)
                        x <- invoke_fns(x, log_obj(x, msg), loggers, "logger_",
                                        output_dir = output_dir, ...)
@@ -99,5 +104,5 @@ ml_log <- function(x = identity, msg = list(),
                x))
 }
 
-`_mlhints`[["ml_log"]] <- "skip_args_so_far"
+`_mlhints`[["mllog"]] <- "skip_args_so_far"
 

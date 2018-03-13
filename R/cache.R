@@ -1,3 +1,4 @@
+##' @include pipeline.R
 
 
 ### UTILITIES
@@ -69,7 +70,7 @@ marks2list <- function(markers) {
     out <- list()
     nms <- names(markers)
     for (nm in nms) {
-        out <- assoc_in(out, strsplit(nm, ":", fixed = T), markers[[nm]])
+        out <- assoc(out, strsplit(nm, ":", fixed = T), markers[[nm]])
     }
     out
 }
@@ -83,7 +84,7 @@ cacher_rds <- function(x, obj = NULL, output_dir, compress = FALSE, ..., .action
            `cached?` = {
                stopifnot(is.null(obj))
                if (file.exists(file)) {
-                   x <- assoc_in(x, c("op-markers", x[["op"]], x[["full-branch"]]), TRUE)
+                   x <- assoc(x, c("op-markers", x[["op"]], x[["full-branch"]]), TRUE)
                }
            }, 
            `load-cache` = {
@@ -113,7 +114,8 @@ cache_continuator <- function(x, ...) {
     }
 }           
 
-ml_cache <- function(x = identity,
+##' @export
+mlcache <- function(x = identity,
                      cacher = "rds",
                      output_dir = "../output/",
                      do_cache = TRUE, ...) {
@@ -140,21 +142,21 @@ ml_cache <- function(x = identity,
                                                      x[["cxtenv"]][["stack"]])
                        x[["cxtenv"]][["pos"]] <- x[["cxtenv"]][["pos"]] + 1L
                    }
-                   x <- nocont(ml_log)(x) # initialize the logger
+                   x <- nocont(mllog)(x) # initialize the logger
                }
                mlcontinue(x)
            },
            `load-cache` = {
                if (do_cache) {
                    x <- do.call(fn, list(x, NULL, output_dir = output_dir, ..., .action = "load-cache"))
-                   nocont(ml_log)(x, msg = sprintf("Loaded cache (pos:%d after:%s)", pos(x), prev_stack_name(x)))
+                   nocont(mllog)(x, msg = sprintf("Loaded cache (pos:%d after:%s)", pos(x), prev_stack_name(x)))
                    cache_continuator(x)
                } else {
                    mlcontinue(x)
                }
            },
            run = {
-               nocont(ml_log)(x, sprintf("Caching (pos:%d after:%s)", pos(x), prev_stack_name(x)))
+               nocont(mllog)(x, sprintf("Caching (pos:%d after:%s)", pos(x), prev_stack_name(x)))
                old_digest <- x[["digest"]]
                obj <- x2cache(add_digest(x), old_digest)
                mlcontinue(do.call(fn, list(x, obj, output_dir = output_dir, ..., .action = "cache")))
@@ -162,4 +164,4 @@ ml_cache <- function(x = identity,
            mlcontinue(x))
 }
 
-`_mlhints`[["ml_cache"]] <- "skip_args_so_far"
+`_mlhints`[["mlcache"]] <- "skip_args_so_far"

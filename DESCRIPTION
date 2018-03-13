@@ -1,0 +1,24 @@
+Package: multiline
+Title: Data analytics pipeline
+Version: 0.0.0.9000
+Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
+Description: What the package does (one paragraph).
+License: GPL3
+Encoding: UTF-8
+Depends:
+  R (>= 3.4)
+Imports:
+  rlang,
+  purrr,
+  fastdigest
+LazyData: true
+Collate: 
+    'pipeline.R'
+    'cache.R'
+    'files.R'
+    'log.R'
+    'map.R'
+    'split.R'
+    'time.R'
+    'utils.R'
+RoxygenNote: 6.0.1
