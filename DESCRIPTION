@@ -1,7 +1,7 @@
-Package: multiline
+Package: magistral
 Title: Data analytics pipeline
 Version: 0.0.0.9000
-Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
+Authors@R: person("Vitalie", "Spinu", email = "spinuvit@gmail.com", role = c("aut", "cre"))
 Description: What the package does (one paragraph).
 License: GPL3
 Encoding: UTF-8

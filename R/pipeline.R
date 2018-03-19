@@ -64,7 +64,7 @@ mlcontinue <- function(x, op = x[["op"]]) {
     }
     branch <- x[["full-branch"]]
     if (is.null(pluck(x, "op-markers", op, branch))) {
-        x <- assoc_in(x, c("op-markers", op, branch), FALSE)
+        x <- assoc(x, c("op-markers", op, branch), FALSE)
     }
     if (is.null(cxtenv))
         stop("'cxtenv' is missing")
@@ -87,10 +87,10 @@ mlcontinue <- function(x, op = x[["op"]]) {
                    append, ll(!!curhash := curid))
     xnew <-
         if (is.mlstack(curitem)) {
-            tx <- assoc_in(x, c("cxtenv", "stack"), curitem)
+            tx <- assoc(x, c("cxtenv", "stack"), curitem)
             tx <- mldispatch(tx, op, branch = curname, start_pos = 1)
-            tx <- assoc_in(tx, c("cxtenv", "stack"), x[["cxtenv"]][["stack"]])
-            assoc_in(tx, "full-branch", branch)
+            tx <- assoc(tx, c("cxtenv", "stack"), x[["cxtenv"]][["stack"]])
+            assoc(tx, "full-branch", branch)
         } else {
             curargs <- item_args(curitem)
             all_args <- cxtenv[["all_args"]]
@@ -100,7 +100,7 @@ mlcontinue <- function(x, op = x[["op"]]) {
                                all_args[names(all_args) %in% names(curargs)])
             invoke_stack_item(curitem, x, cxtenv[["call_args"]], cxtenv[["env"]])
         }
-    assoc_in(xnew, c("cxtenv", "pos"), pos)
+    assoc(xnew, c("cxtenv", "pos"), pos)
 }
 
 ##' @export
@@ -111,18 +111,18 @@ mldispatch <- function(x, op = x[["op"]], branch = NULL, start_pos = 1L) {
     old_full_branch <- x[["full-branch"]]
     branch <- or(branch, model_name(x))
     full_branch <- paste(old_full_branch, branch, sep = ":")
-    x <- assoc_in(x,
-                  "op", op,
-                  "branch", branch,
-                  "full-branch", full_branch,
-                  c("cxtenv", "pos"), start_pos - 1L, 
-                  c("start_time", op), Sys.time(), 
-                  c("op-markers", op, full_branch), FALSE)
+    x <- assoc(x,
+               "op", op,
+               "branch", branch,
+               "full-branch", full_branch,
+               c("cxtenv", "pos"), start_pos - 1L, 
+               c("start_time", op), Sys.time(), 
+               c("op-markers", op, full_branch), FALSE)
     x <- mlcontinue(x)
-    assoc_in(x,
-             "op", old_op,
-             "branch", old_branch,
-             "full-branch", old_full_branch)
+    assoc(x,
+          "op", old_op,
+          "branch", old_branch,
+          "full-branch", old_full_branch)
 }
 
 dispatcher_fn <- function(name = NULL, args, parent_env, stack, call_args = list()) {
@@ -190,9 +190,9 @@ mlfunction <- function(name = NULL,
 ##' @keywords internal
 ##' @export
 ml_init_context <- function(x, env = env_parent(caller_env()),
-                       stack = env_get(env, "MLSTACK.."),
-                       call = caller_call(),
-                       fn = caller_fn()) {
+                            stack = env_get(env, "MLSTACK.."),
+                            call = caller_call(),
+                            fn = caller_fn()) {
     fn_args <- remove_dots(fn_fmls(fn))
     call_args <- call_args(match.call(fn, call, envir = env))
 
@@ -301,7 +301,7 @@ mlrepeat <- function(x = identity, nrepeats = 10, ...) {
         tx <- mldispatch(x, branch = branch, start_pos = x[["cxtenv"]][["pos"]] + 1L)
         xout <- modifyList(xout, tx)
     }
-    assoc_in(xout, "repeat", old_repeat)
+    assoc(xout, "repeat", old_repeat)
 }
 
 
@@ -359,7 +359,7 @@ data_nrow <- function(x) {
 data_subset <- function(x, subset) {
     data <- x[["data"]]
     if (is.data.frame(x)) {
-        assoc_in(x, "data", data[subset, ])
+        assoc(x, "data", data[subset, ])
     } else if (is.list(data)) {
         data <-
             map(data, function(e) {
@@ -369,7 +369,7 @@ data_subset <- function(x, subset) {
                 else
                     e[subset]   
             })
-        assoc_in(x, "data", data)
+        assoc(x, "data", data)
     } else {
         stop("'data' component must be a data.frame or a list")        
     }

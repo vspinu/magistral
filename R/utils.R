@@ -39,7 +39,7 @@ assoc <- function(object, keys = NULL, val = NULL, ...) {
         obj <- object[[k]]
         if (is.null(obj))
             obj <- list()
-        object[[k]] <- assoc_in(obj, keys[-1], val)
+        object[[k]] <- assoc(obj, keys[-1], val)
     } else {
         object[[k]] <- val
     }

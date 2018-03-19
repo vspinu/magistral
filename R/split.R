@@ -18,47 +18,47 @@ mlsample <- function(x = identity, sample_n = NULL, sample_prop = NULL, sample_r
 }
 
 ##' @export
-mlsplit <- function(x = identity, nsplits = NULL, split_props = NULL,
-                    split_by = NULL, ids = NULL, ...) {
+mlbranch <- function(x = identity, nbranches = NULL, branch_props = NULL,
+                     branch_by = NULL, ids = NULL, ...) {
     if (is.function(x))
-        return(mlfunction("mlsplit"))
+        return(mlfunction("mlbranch"))
     
     nrows <- data_nrow(x)
     
-    if (is.null(split_by)) {
+    if (is.null(branch_by)) {
 
         ## 1) SUBSAMPLING
         
-        ## make sure that both split_props and nsplits are defined
-        if (is.null(split_props)) {
-            if (is.null(nsplits))
-                stop("At least one of nsplits, split_props, split_by must be specified")
-            split_props <- setNames(rep.int(1/nsplits, nsplits), paste0("split", 1:nsplits))
+        ## make sure that both branch_props and nbranches are defined
+        if (is.null(branch_props)) {
+            if (is.null(nbranches))
+                stop("At least one of nbranches, branch_props, branch_by must be specified")
+            branch_props <- setNames(rep.int(1/nbranches, nbranches), paste0("branch", 1:nbranches))
         } else {
-            if (!is.null(nsplits)) 
-                warning("Both `split_props` and `nsplits` supplied; ignoring `nsplits`")
-            nsplits <- length(split_props)
-            split_props <- split_props/sum(split_props)
+            if (!is.null(nbranches)) 
+                warning("Both `branch_props` and `nbranches` supplied; ignoring `nbranches`")
+            nbranches <- length(branch_props)
+            branch_props <- branch_props/sum(branch_props)
         }
-        split_names <- names(split_props)
+        branch_names <- names(branch_props)
 
         ## resampling:
         
         if (is.null(ids)) {
             ## simple sampling
-            ix <- sample.int(nsplits, nrows, replace = nsplits < nrows, prob = split_props)
-            ix <- map(set_names(1:nsplits, split_names), ~ which(ix == .x))
+            ix <- sample.int(nbranches, nrows, replace = nbranches < nrows, prob = branch_props)
+            ix <- map(set_names(1:nbranches, branch_names), ~ which(ix == .x))
         } else {
             ## hash ids into buckets
             nbkts <- 1e5L
-            thresholds <- cumsum(split_props) * nbkts
+            thresholds <- cumsum(branch_props) * nbkts
             ix <-
-                if (length(split_by) > 1)
-                    do.call("interaction", x[["data"]][split_by])
+                if (length(branch_by) > 1)
+                    do.call("interaction", x[["data"]][branch_by])
                 else
-                    as.factor(x[["data"]][[split_by]])
+                    as.factor(x[["data"]][[branch_by]])
             bkts <- FeatureHashing::hashed.value(levels(ix)) %% nbkts
-            levels(ix) <- split_names[findInterval(bkts, thresholds, all.inside = TRUE)]
+            levels(ix) <- branch_names[findInterval(bkts, thresholds, all.inside = TRUE)]
             ix <- map(set_names(levels(ix)), ~ which(ix == .x))
         }
         
@@ -67,22 +67,22 @@ mlsplit <- function(x = identity, nsplits = NULL, split_props = NULL,
         ## 2) PREDEFINED SPLIT_BY
         
         if (!is.null(ids))
-            warning("Both `split_by` and `ids` are supplied to mlsplit; ignoring `ids`")
+            warning("Both `branch_by` and `ids` are supplied to mlbranch; ignoring `ids`")
         ix <-
-            if (length(split_by) > 1)
-                do.call("interaction", x[["data"]][split_by])
+            if (length(branch_by) > 1)
+                do.call("interaction", x[["data"]][branch_by])
             else
-                as.factor(x[["data"]][[split_by]])
+                as.factor(x[["data"]][[branch_by]])
         ix <- map(set_names(levels(ix)), ~ which(ix == .x))
         
     }
 
     ## dispatch for non-empty indexes
-    old_split <- x[["split"]]
+    old_branch <- x[["branch"]]
     xout <- mllist()
     for (l in names(ix)) {
         if (length(ix[[l]]) > 0) {
-            x[["split"]] <- ix
+            x[["branch"]] <- ix
             val <- mldispatch(data_subset(x, ix[[l]]),
                               branch = l,
                               start_pos = x[["cxtenv"]][["pos"]] + 1L)
@@ -91,3 +91,4 @@ mlsplit <- function(x = identity, nsplits = NULL, split_props = NULL,
     } 
     xout
 }
+
