@@ -10,16 +10,16 @@ xgb_data <- function(x, split = NULL, respvar = NULL) {
   xgboost::xgb.DMatrix(mat, label = resp)
 }
 
-.xgb_predict <- function(x, split, respvar, model, ...) {
-  xgboost:::predict.xgb.Booster(ml_model(x, respvar, model),
+.xgb_predict <- function(x, split, model, ...) {
+  xgboost:::predict.xgb.Booster(model[["raw_model"]],
                                 numatrix(ml_data(x, split)),
                                 ...)
 }
 
 #' @export
-xgb_pred <- function(model, st, split = NULL, ...) {
+xgb_pred <- function(raw_model, st, split = NULL, ...) {
   mat <- numatrix(ml_data(st, split))
-  xgboost:::predict.xgb.Booster(model, newdata = mat, ...)
+  xgboost:::predict.xgb.Booster(raw_model, newdata = mat, ...)
 }
 
 #' @export
@@ -34,16 +34,17 @@ xgb_train <- function(x, respvar, params, test_split = "NOTRAIN", nrounds = 1500
   devdsets <- nmap(test_split, ~ xgb_data(x, .x, respvar))
   traindset <- if (train_split %in% names(devdsets)) devdsets[[train_split]]
                else xgb_data(x, train_split, respvar)
-  model <- xgb.train(data = traindset, 
-                     watchlist = devdsets, 
-                     params = params,
-                     verbose = 1, 
-                     print_every_n = 25,
-                     nrounds = nrounds)
-  x[["models"]][[respvar]][[name]] <-
-    list(model = model,
-         predict_fn = ".xgb_predict")
-  x
+  faw_model <-
+    xgb.train(data = traindset, 
+              watchlist = devdsets, 
+              params = params,
+              verbose = 1, 
+              print_every_n = 25,
+              nrounds = nrounds)
+  ml_inset_model(x, name,
+                 raw_model = raw_model,
+                 respvar = respvar, 
+                 predict_fn = ".xgb_predict")
 }
 
 
@@ -59,7 +60,7 @@ lgb_data <- function(x, split = NULL, respvar = NULL) {
 }
 
 .lgb_predict <- function(x, split, respvar, model, ...) {
-  lightgbm:::predict.lgb.Booster(ml_model(x, respvar, model),
+  lightgbm:::predict.lgb.Booster(model[["raw_model"]],
                                  ml_lgb_data(x, split), ...)
 }
 
@@ -74,17 +75,13 @@ lgb_train <- function(x, respvar, params, test_split = "NOTRAIN", nrounds = 1500
   devdsets <- nmap(test_split, ~ ml_lgb_data(x, .x, respvar))
   traindset <- if (train_split %in% names(devdsets)) devdsets[[train_split]]
                else ml_lgb_data(x, train_split, respvar)
-  model <- lgb.train(data = traindset, 
-                     params = params,
-                     verbose = 1, 
-                     eval_freq = 25,
-                     valids = devdsets, 
-                     nrounds = nrounds,
-                     reset_data = free_data)
-  x[["models"]][[respvar]][[name]] <-
-    list(model = model,
-         predict_fn = ".lgb_predict")
-  x
+  raw_model <-
+    lgb.train(data = traindset, params = params, verbose = 1, eval_freq = 25,
+              valids = devdsets, nrounds = nrounds, reset_data = free_data)
+  ml_inset_model(x, name,
+                 raw_model = raw_model,
+                 respvar = respvar, 
+                 predict_fn = ".lgb_predict")
 }
 
 
@@ -98,7 +95,7 @@ ml_cgb_data <- function(x, split, respvar = NULL) {
 
 .cgb_predict <- function(x, split, respvar, model,
                          prediction_type = "Probability", ...) {
-  catboost.predict(ml_model(x, respvar, model),
+  catboost.predict(model[["raw_model"]],
                    ml_cgb_data(x, split),
                    prediction_type = prediction_type, 
                    ...)
@@ -123,12 +120,12 @@ cgb_train <- function(x, respvar, params, nrounds = 1500,
                      metric_period = 25,
                      train_dir = "catboost"),
                 !!!params)
-  model <- catboost.train(learn_pool = trainset, 
-                          test_pool = testset,
-                          params = params)
-  x[["models"]][[respvar]][[name]] <-
-    list(model = model,
-         predict_fn = ".cgb_predict")
-  x
+  raw_model <-
+    catboost.train(learn_pool = trainset, 
+                   test_pool = testset,
+                   params = params)
+  ml_inset_model(x, name,
+                 raw_model = raw_model,
+                 respvar = respvar, 
+                 predict_fn = ".cgb_predict")
 }
-

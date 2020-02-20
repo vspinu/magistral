@@ -107,20 +107,20 @@ normalize_pipeline <- function(pl, env = parent.frame()) {
   pl
 }
 
-run_hooks <- function(hooks, env) {
-  hook_call <- quote(`_hook`(`_out`))
-  for (hook in hooks) {
-    env[["_hook"]] <<- hook
-    `_out` <<- .Call(purrr:::purrr_eval, hook_call, env)
-  }
-  env[["_hook"]] <- NULL
-}
+## run_hooks <- function(hooks, env) {
+##   hook_call <- quote(`_hook`(`_out`))
+##   for (hook in hooks) {
+##     env[["_hook"]] <<- hook
+##     `_out` <<- .Call(purrr:::purrr_eval, hook_call, env)
+##   }
+##   env[["_hook"]] <- NULL
+## }
 
 clean_env <- function(env = NULL, clean_promises = FALSE) {
   ## cleanup promises
-  names <- ls(fnenv, all.names = T)
+  names <- ls(env, all.names = T)
   to_remove <- c("_x_", "_wrapper_")
-  if (clean_promises && environmentName(fnenv) == "") {
+  if (clean_promises && environmentName(env) == "") {
     to_remove <- c("x", "...", to_remove)
   }
   rm(list = intersect(to_remove, names),
@@ -177,6 +177,7 @@ stage_runner <- function(x, stage0, call, pl, wrappers, env) {
             call <- call_modify(call0, !!!as.list(step)[-1], !!!call_tail, .homonyms = "last")
           call[[1]] <- as.symbol(stage_id)
           while (is.function(obj)) {
+            clean_env(environment(eenv[[stage_id]]), TRUE)
             eenv[[stage_id]] <- obj
             obj <- .Call(purrr:::purrr_eval, call, eenv)
           }
@@ -198,7 +199,9 @@ stage_runner <- function(x, stage0, call, pl, wrappers, env) {
           x$state$pl[[x$state$ix]] <- eenv[[stage_id]]
         }
       }
+      ## FIXME: probably needed here for the wrapper
       clean_env(environment(eenv[[stage_id]]), TRUE)
+      clean_env(eenv) # needed in case eenv is captured by functions in the call
     }
     x$state$stage <- cur_stage
     x$state$ix <- x$state$ix + 1
@@ -233,14 +236,14 @@ pl <- function(..., .pl = list(), .wrappers = NULL) {
     call <- sys.call()
     x <- normalize_input(x)
     x <- stage_runner(x, "init", call, PIPELINE, WRAPPERS, ENV)
-    x <- stage_runner(x, "run", call, x$state$pl$PIPELINE, x$state$wp, ENV)
-    x <- stage_runner(x, "finit", call, x$state$pl$PIPELINE, x$state$wp, ENV)
+    x <- stage_runner(x, "run", call, environment(x$state$pl)[["PIPELINE"]], x$state$wp, ENV)
+    x <- stage_runner(x, "finit", call, environment(x$state$pl)[["PIPELINE"]], x$state$wp, ENV)
     x$pipeline <- x$state$pl
     class(x) <- "magistral.state"
     x[["state"]] <- NULL
     invisible(x)
   }
-
+ 
   rm_doted()
   ## formals(runner) <- formals(PIPELINE[[1]])
   ## names(formals(runner))[[1]] <- "x"
@@ -309,9 +312,11 @@ print.magistral.pipeline <- function(x, ..., cur_ix = 0) {
     } else if (inherits(pl[[i]], "magistral.pipeline")) {
       print.magistral.pipeline(pl[[i]], cur_ix = ix)
     } else {
-      if (is.function(pl[[i]])) {
-        .ls_fn_env(pl[[i]])
-      }
+      env <- parent.frame()
+      fn <- step_fn(pl[[i]], env)
+      if (is.function(fn)) {
+        .ls_fn_env(fn)
+      } 
       print(pl[[i]], ..., cur_ix = ix)
     }
   }

@@ -1,14 +1,14 @@
 
-trace_step <- function(fn) {
+tracer <- function(fn) {
   function(x, verbose = TRUE, ...) {
     if (verbose) {
-      ovars <- colnames(ex_data(x))
+      ovars <- colnames(ml_data(x))
       otime <- Sys.time()
     }
     x <- fn(x)
     if (verbose) {
       tdiff <- Sys.time() - otime
-      nvars <- colnames(ex_data(x))
+      nvars <- colnames(ml_data(x))
       add_vars <- setdiff(nvars, ovars)
       rem_vars <- setdiff(ovars, nvars)
       added_vars <-
@@ -27,13 +27,13 @@ trace_step <- function(fn) {
 }
 
 ##' @export
-tracer <- function(x, ...) {
+wrap_tracer <- function(x, ...) {
   if (x$state$stage[[1]] == "init") {
-    x$state$wp$logger <- trace_step
+    x$state$wp$logger <- tracer
     ## remove myself
     x$state$pl[[x$state$ix]] <- NULL
     x$state$ix <- NULL
   }
   x
 }
-class(tracer) <- c("magistral.step", "function")
+class(wrap_tracer) <- c("magistral.step", "function")
