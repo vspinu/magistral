@@ -4,7 +4,7 @@
 \name{magistral-package}
 \alias{magistral}
 \alias{magistral-package}
-\title{Magisterial Package}
+\title{Lightweight machine learning and data processing pipeline}
 \description{
 What the package does (one paragraph).
 }
@@ -12,3 +12,4 @@ What the package does (one paragraph).
 \strong{Maintainer}: Vitalie Spinu \email{spinuvit@gmail.com}
 
 }
+\keyword{internal}

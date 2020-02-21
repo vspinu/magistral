@@ -2,11 +2,12 @@
 #' @export
 vars_remover <- function(x = NULL, regex = NULL, vars = NULL, fun = NULL, ignore.case = FALSE, ...) {
   function(x, ...) {
-    vars <- sort(c(if (!is.null(regex))
-      unlist(map(regex, ~ grep(.x, names(x[["data"]]), ignore.case = ignore.case, value = TRUE))),
-      if (!is.null(fun))
-        fun(x[["data"]]), 
-      vars))
+    vars <- c(if (!is.null(regex))
+                unlist(map(regex, ~ grep(.x, names(x[["data"]]), ignore.case = ignore.case, value = TRUE))),
+              if (!is.null(fun))
+                fun(x[["data"]]), 
+              vars)
+    vars <- sort(vars)
     vars <- intersect(vars, names(x[["data"]]))
     select(setDT(x[["data"]]), -one_of(vars)) %>%
       plug_data(x)

@@ -10,8 +10,9 @@ Depends:
 Imports:
   rlang,
   purrr,
+  dplyr,
   fastdigest
 LazyData: true
-RoxygenNote: 7.0.1
+RoxygenNote: 7.0.2
 Suggests: 
     testthat
