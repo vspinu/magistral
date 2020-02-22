@@ -59,7 +59,7 @@ extract_prototype <- function(dt) {
   prot <- dt[1, ]
   for (i in seq_along(prot))
     prot[[1, i]] <- NA
-  prot
+  as.list(prot)
 }
 
 #' @export

@@ -24,12 +24,9 @@ vars_mem_remover <- function(x, regex = NULL, vars = NULL, fun = NULL, ignore.ca
                    vars))
     function(x, ...) {
       vars <- intersect(vars, names(x[["data"]]))
-      if (length(vars) > 0) {
-        select(x[["data"]], -one_of(vars)) %>%
-          plug_data(x)
-      } else {
-        x
-      }
+      if (length(vars) > 0)
+        x[["data"]] <- select(x[["data"]], -one_of(vars))
+      x
     }
   }
 }
@@ -66,22 +63,20 @@ vars_adder <- function(x, regex = NULL, vars = NULL, fn = NULL, ignore.case = TR
 
 #' @export
 vars_mem_adder <- function(x, regex = NULL, vars = NULL, fn = NULL, ignore.case = FALSE, ...) {
+  vars <- c(
+    if (!is.null(regex))
+      unlist(map(regex, ~ grep(.x, names(x[["DATA"]]), ignore.case = ignore.case, value = TRUE))),
+    if (!is.null(fn))
+      fn(x[["data"]]), 
+    vars)
   function(x, ...) {
-    vars <- c(
-      if (!is.null(regex))
-        unlist(map(regex, ~ grep(.x, names(x[["DATA"]]), ignore.case = ignore.case, value = TRUE))),
-      if (!is.null(fn))
-        fn(x[["data"]]), 
-      vars)
-    function(x, ...) {
-      for (var in setdiff(vars, names(x[["data"]]))) {
-        el <- x[["DATA"]][[var]]
-        if (is.null(el))
-          stop(sprintf("Variable '%s' is missing in DATA", var))
-        x[["data"]][[var]] <- el
-      }
-      x
+    for (var in setdiff(vars, names(x[["data"]]))) {
+      el <- x[["DATA"]][[var]]
+      if (is.null(el))
+        stop(sprintf("Variable '%s' is missing in DATA", var))
+      x[["data"]][[var]] <- el
     }
+    x
   }
 }
 
@@ -134,18 +129,16 @@ vars_memoiser <- function(x, overwrite_prototypes = NULL, ...) {
   }
 }
 
+is.factor_or_character <- function(x) {
+  is.factor(x) || is.character(x)
+}
 
 #' @export
-cat_lumper <- function(x, prop = 0, ...) {
-  cat_levels <- list()
+lumper.categorical <- function(x, prop = 0, ...) {
+  cat_levels <-
+    map(keep(x[["data"]], is.factor_or_character),
+        fct_lumped_levels, prop = prop)
   function(x, ...) {
-    new_facts <- keep(names(x[["data"]]), function(nm) {
-      vec <- x[["data"]][[nm]]
-      !nm %in% names(cat_levels) && (is.character(vec) || is.factor(vec))
-    })
-    new_levels <- map(select(x[["data"]], one_of(new_facts)),
-                      fct_lumped_levels, prop = prop)
-    cat_levels <<- c(cat_levels, new_levels)
     imodify(x[["data"]], function(v, nm) {
       if ((is.character(v) || is.factor(v)) & nm %in% names(cat_levels)) {
         fct_set_levels(v, cat_levels[[nm]])
