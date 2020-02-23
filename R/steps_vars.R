@@ -9,25 +9,24 @@ vars_remover <- function(x = NULL, regex = NULL, vars = NULL, fun = NULL, ignore
               vars)
     vars <- sort(vars)
     vars <- intersect(vars, names(x[["data"]]))
-    select(setDT(x[["data"]]), -one_of(vars)) %>%
-      plug_data(x)
+    x[["data"]] <- select(x[["data"]], -one_of(vars))
+    x
   }
 }
  
 #' @export
 vars_mem_remover <- function(x, regex = NULL, vars = NULL, fun = NULL, ignore.case = FALSE, ...) {
+  vars <- sort(
+    c(if (!is.null(regex))
+        unlist(map(regex, ~ grep(.x, names(x[["DATA"]]), ignore.case = ignore.case, value = TRUE))),
+      if (!is.null(fun))
+        fun(x[["DATA"]]), 
+      vars))
   function(x, ...) {
-    vars <- sort(c(if (!is.null(regex))
-                     unlist(map(regex, ~ grep(.x, names(x[["DATA"]]), ignore.case = ignore.case, value = TRUE))),
-                   if (!is.null(fun))
-                     fun(x[["DATA"]]), 
-                   vars))
-    function(x, ...) {
-      vars <- intersect(vars, names(x[["data"]]))
-      if (length(vars) > 0)
-        x[["data"]] <- select(x[["data"]], -one_of(vars))
-      x
-    }
+    vars <- intersect(vars, names(x[["data"]]))
+    if (length(vars) > 0)
+      x[["data"]] <- select(x[["data"]], -one_of(vars))
+    x
   }
 }
 
@@ -39,8 +38,8 @@ vars_keeper <- function(x, regex = NULL, vars = NULL, fun = NULL, ignore.case = 
       if (!is.null(fun))
         fun(x[["data"]]), 
       vars))
-    select(setDT(x[["data"]]), vars) %>%
-      plug_data(x)
+    x[["data"]] <- select(x[["data"]], vars)
+    x
   }
 }
 
@@ -124,8 +123,8 @@ vars_memoiser <- function(x, overwrite_prototypes = NULL, ...) {
         out[[nm]] <- reclass(v, class(p), levels(p))
       }
     }
-    select(out, !!!names(prototype)) %>%
-      plug_data(x)
+    x[["data"]] <- select(out, !!!names(prototype))
+    x
   }
 }
 
@@ -139,13 +138,14 @@ lumper.categorical <- function(x, prop = 0, ...) {
     map(keep(x[["data"]], is.factor_or_character),
         fct_lumped_levels, prop = prop)
   function(x, ...) {
-    imodify(x[["data"]], function(v, nm) {
-      if ((is.character(v) || is.factor(v)) & nm %in% names(cat_levels)) {
-        fct_set_levels(v, cat_levels[[nm]])
-      } else {
-        v
-      }
-    }) %>%
-      plug_data(x)
+    x[["data"]] <-
+      imodify(x[["data"]], function(v, nm) {
+        if ((is.character(v) || is.factor(v)) & nm %in% names(cat_levels)) {
+          fct_set_levels(v, cat_levels[[nm]])
+        } else {
+          v
+        }
+      })
+    x
   }
 }
