@@ -2,7 +2,7 @@
 #'
 #' @rawNamespace import(rlang, except = c(modify,prepend,`:=`))
 #' @importFrom dplyr select one_of
-#' @importFrom data.table := rbindlist setkey
+#' @importFrom data.table := rbindlist setkey is.data.table
 #' @keywords internal
 "_PACKAGE"
 
@@ -37,10 +37,10 @@ normalize_magistral_input <- function(x, ...) {
     env <- parent.env(env)
   }
   envs <- rev(envs)
-  cat(glue("*{rlang::env_label(env)}*"), "\n", sep = "")
+  cat(sprintf("*%s*", rlang::env_label(env)), "\n", sep = "")
   for (j in seq_along(envs)) {
     pref1 <- paste(rep.int("->", j), collapse = "")
-    cat(pref1, " ", glue("*{rlang::env_label(envs[[j]])}*"), "\n", sep = "")
+    cat(pref1, " ", sprintf("*%s*", rlang::env_label(envs[[j]])), "\n", sep = "")
     if (length(envs[[j]]) > 0) {
       objects <- as.list.environment(envs[[j]], all.names = TRUE)
       indent <- paste(rep.int("  ", j), collapse = " ")
@@ -97,7 +97,7 @@ normalize_pipeline <- function(pl, env = parent.frame()) {
       } else {
         ## check for all named arguments of expressions
         if (!all(nzchar(call_args_names(obj)))) {
-          stop(glue("Empty arguments in step '{names[[ix]]}'"), call. = FALSE)
+          stop(sprintf("Empty arguments in step '%s'", names[[ix]]), call. = FALSE)
         }
       }
     }
@@ -298,7 +298,7 @@ ml_DATA <- function(x, split = NULL, vars = NULL) {
 #' @export
 print.magistral.pipeline <- function(x, ..., cur_ix = 0) {
   ## pref0 <- paste(if (cur_ix > 0) "\n", rep.int("   ", cur_ix), collapse = "")
-  cat(glue("<{class(x)[[1]]}>"), "\n", sep = "")
+  cat(sprintf("<%s>", class(x)[[1]]), "\n", sep = "")
   .ls_fn_env(x)
   pl <- environment(x)[["PIPELINE"]]
   for (i in seq_along(pl)) {
@@ -374,7 +374,13 @@ export.magistral.pipeline <- function(pl, name = NULL, file = "", styler = TRUE,
     dput(normalize_magistral_input, file = con)
     stopifnot(is.character(extra))
     for (nm in extra) {
-      dput_fn(step_fn(nm, parent.frame()), nm, con)
+      where <- 
+        if (grepl(":", nm, fixed = T)) {
+          nms <- strsplit(nm, ":+")[[1]]
+          nm <- nms[[2]]
+          asNamespace(nms[[1]])
+        } else parent.frame()
+      dput_fn(step_fn(nm, where), nm, con)
     }
   }
   pl <- environment(pl)[["PIPELINE"]]

@@ -6,12 +6,11 @@ Description: What the package does (one paragraph).
 License: GPL3
 Encoding: UTF-8
 Depends:
-  R (>= 3.5)
+  R (>= 3.5),
+  utils
 Imports:
   rlang,
-  purrr,
-  dplyr,
-  fastdigest
+  data.table
 LazyData: true
 RoxygenNote: 7.0.2
 Suggests: 

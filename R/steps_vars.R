@@ -1,60 +1,70 @@
+match_vars <- function(x, vars = NULL, regex = NULL, fn = NULL, ignore.case = FALSE, kind = "DATA") {
+  c(if (!is.null(regex))
+      unlist(lapply(regex, grep, names(x[[kind]]), ignore.case = ignore.case, value = TRUE)),
+    if (!is.null(fn))
+      fn(x[[kind]]), 
+    vars)
+}
+
+select_vars <- function(df, vars) {
+  if (length(vars) == 0)
+    return(df)
+  if (is.data.table(df)) {
+    df[, vars, with = FALSE]
+  } else {
+    df[, vars]
+  }
+}
 
 #' @export
-vars_remover <- function(x = NULL, regex = NULL, vars = NULL, fun = NULL, ignore.case = FALSE, ...) {
+vars_remover <- function(x = NULL, regex = NULL, vars = NULL, fn = NULL, ignore.case = FALSE, ...) {
   function(x, ...) {
-    vars <- c(if (!is.null(regex))
-                unlist(map(regex, ~ grep(.x, names(x[["data"]]), ignore.case = ignore.case, value = TRUE))),
-              if (!is.null(fun))
-                fun(x[["data"]]), 
-              vars)
-    vars <- sort(vars)
-    vars <- intersect(vars, names(x[["data"]]))
-    x[["data"]] <- select(x[["data"]], -one_of(vars))
+    vars <- match_vars(x, vars, regex, fn, ignore.case, "data")
+    vars <- setdiff(names(x[["data"]]), vars)
+    x[["data"]] <- select_vars(x[["data"]], vars)
     x
   }
 }
  
 #' @export
-vars_mem_remover <- function(x, regex = NULL, vars = NULL, fun = NULL, ignore.case = FALSE, ...) {
-  vars <- sort(
-    c(if (!is.null(regex))
-        unlist(map(regex, ~ grep(.x, names(x[["DATA"]]), ignore.case = ignore.case, value = TRUE))),
-      if (!is.null(fun))
-        fun(x[["DATA"]]), 
-      vars))
+vars_mem_remover <- function(x, vars = NULL, regex = NULL, fn = NULL, ignore.case = FALSE, ...) {
+  vars <- sort(match_vars(x, vars, regex, fn, ignore.case, "data"))
   function(x, ...) {
-    vars <- intersect(vars, names(x[["data"]]))
-    if (length(vars) > 0)
-      x[["data"]] <- select(x[["data"]], -one_of(vars))
+    vars <- setdiff(names(x[["data"]]), vars)
+    x[["data"]] <- select_vars(x[["data"]], vars)
     x
   }
 }
 
 #' @export
-vars_keeper <- function(x, regex = NULL, vars = NULL, fun = NULL, ignore.case = TRUE, ...) {
+vars_keeper <- function(x, vars = NULL, regex = NULL, fn = NULL, ignore.case = TRUE, ...) {
   function(x, ...) {
-    vars <- sort(c(if (!is.null(regex))
-      unlist(map(regex, ~ grep(.x, names(x[["data"]]), ignore.case = ignore.case, value = TRUE))),
-      if (!is.null(fun))
-        fun(x[["data"]]), 
-      vars))
+    vars <- match_vars(x, vars, regex, fn, ignore.case, "data")
     x[["data"]] <- select(x[["data"]], vars)
     x
   }
 }
 
 #' @export
-vars_adder <- function(x, regex = NULL, vars = NULL, fn = NULL, ignore.case = TRUE, ...) {
+vars_mem_keeper <- function(x, vars = NULL, regex = NULL, fn = NULL, ignore.case = TRUE, ...) {
+  vars <- sort(match_vars(x, vars, regex, fn, ignore.case, "data"))
   function(x, ...) {
-    vars <- c(
-      if (!is.null(regex))
-        unlist(map(regex, ~ grep(.x, names(x[["DATA"]]), ignore.case = ignore.case, value = TRUE))),
-      if (!is.null(fn))
-        fn(x[["data"]]), 
-      vars)
-    vars <- sort(vars)
+    vars <- intersect(names(x[["data"]]), vars)
+    x[["data"]] <- select_vars(x[["data"]], vars)
+    x
+  }
+}
+
+#' @export
+vars_adder <- function(x, vars = NULL, regex = NULL, fn = NULL, ignore.case = TRUE, ...) {
+  function(x, ...) {
+    vars <- match_vars(x, vars, regex, fn, ignore.case, "DATA")
     for (var in setdiff(vars, names(x[["data"]]))) {
-      x[["data"]][[var]] <- x[["DATA"]][[var]]
+      el <- x[["DATA"]][[var]]
+      if (is.null(el))
+        warning(sprintf("Variable %s is missing in DATA", var))
+      else 
+        x[["data"]][[var]] <- el
     }
     x
   }
@@ -62,17 +72,13 @@ vars_adder <- function(x, regex = NULL, vars = NULL, fn = NULL, ignore.case = TR
 
 #' @export
 vars_mem_adder <- function(x, regex = NULL, vars = NULL, fn = NULL, ignore.case = FALSE, ...) {
-  vars <- c(
-    if (!is.null(regex))
-      unlist(map(regex, ~ grep(.x, names(x[["DATA"]]), ignore.case = ignore.case, value = TRUE))),
-    if (!is.null(fn))
-      fn(x[["data"]]), 
-    vars)
+  vars <- match_vars(x, vars, regex, fn, ignore.case, "DATA")
   function(x, ...) {
     for (var in setdiff(vars, names(x[["data"]]))) {
       el <- x[["DATA"]][[var]]
       if (is.null(el))
-        stop(sprintf("Variable '%s' is missing in DATA", var))
+        warning(sprintf("Variable %s is missing in DATA", var))
+      else 
       x[["data"]][[var]] <- el
     }
     x
@@ -116,7 +122,7 @@ vars_memoiser <- function(x, overwrite_prototypes = NULL, ...) {
       v <- out[[nm]]
       if (is.null(v)) {
         if (verbose) {
-          message(glue("Missing variable {nm} of class {class(p)}"))
+          message(sprintf("Missing variable '%s' of class '%s'", nm, class(p)))
         }
         out[[nm]] <- p
       } else {
