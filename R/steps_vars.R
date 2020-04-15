@@ -1,9 +1,20 @@
-match_vars <- function(x, vars = NULL, regex = NULL, fn = NULL, ignore.case = FALSE, kind = "DATA") {
-  c(if (!is.null(regex))
-      unlist(lapply(regex, grep, names(x[[kind]]), ignore.case = ignore.case, value = TRUE)),
-    if (!is.null(fn))
-      fn(x[[kind]]), 
-    vars)
+match_vars <- function(x, vars = NULL, regex = NULL, fn = NULL, ignore.case = FALSE, kind = "DATA", fill_names = FALSE) {
+  vars <- c(if (!is.null(regex))
+              unlist(lapply(regex, grep, names(x[[kind]]), ignore.case = ignore.case, value = TRUE)),
+            if (!is.null(fn))
+              fn(x[[kind]]), 
+            vars)
+  if (fill_names) {
+    names <- names(vars)
+    if (is.null(names)) {
+      names(vars) <- vars
+    } else {
+      empty <- !nzchar(names)
+      names[empty] <- vars[empty]
+      names(vars) <- names
+    }
+  }
+  vars
 }
 
 select_vars <- function(df, vars) {
@@ -58,13 +69,14 @@ vars_mem_keeper <- function(x, vars = NULL, regex = NULL, fn = NULL, ignore.case
 #' @export
 vars_adder <- function(x, vars = NULL, regex = NULL, fn = NULL, ignore.case = TRUE, ...) {
   function(x, ...) {
-    vars <- match_vars(x, vars, regex, fn, ignore.case, "DATA")
-    for (var in setdiff(vars, names(x[["data"]]))) {
-      el <- x[["DATA"]][[var]]
-      if (is.null(el))
-        warning(sprintf("Variable %s is missing in DATA", var))
+    vars <- match_vars(x, vars, regex, fn, ignore.case, "DATA", fill_names = TRUE)
+    which <- match(vars, names(x[["DATA"]]))
+    for (w in seq_along(which)) {
+      i <- which[[w]]
+      if (is.na(i))
+        warning(sprintf("Variable %s is missing in DATA", vars[[w]]))
       else 
-        x[["data"]][[var]] <- el
+        x[["data"]][[names(vars)[[w]]]] <- x[["DATA"]][[i]]
     }
     x
   }
@@ -72,14 +84,15 @@ vars_adder <- function(x, vars = NULL, regex = NULL, fn = NULL, ignore.case = TR
 
 #' @export
 vars_mem_adder <- function(x, regex = NULL, vars = NULL, fn = NULL, ignore.case = FALSE, ...) {
-  vars <- match_vars(x, vars, regex, fn, ignore.case, "DATA")
+  vars <- match_vars(x, vars, regex, fn, ignore.case, "DATA", fill_names = TRUE)
   function(x, ...) {
-    for (var in setdiff(vars, names(x[["data"]]))) {
-      el <- x[["DATA"]][[var]]
-      if (is.null(el))
-        warning(sprintf("Variable %s is missing in DATA", var))
+    which <- match(vars, names(x[["DATA"]]))
+    for (w in seq_along(which)) {
+      i <- which[[w]]
+      if (is.na(i))
+        warning(sprintf("Variable %s is missing in DATA", vars[[w]]))
       else 
-      x[["data"]][[var]] <- el
+        x[["data"]][[names(vars)[[w]]]] <- x[["DATA"]][[i]]
     }
     x
   }
@@ -88,21 +101,20 @@ vars_mem_adder <- function(x, regex = NULL, vars = NULL, fn = NULL, ignore.case 
 
 #' @export
 reclass <- function(x, class, levels) {
-  if (inherits(x, class))
-    x
-  else
-    switch(class[[1]],
-           POSIXct = ,
-           POSIXlt = lubridate::as_datetime(x),
-           DATE = lubridate::as_date(x),
-           numeric = as.numeric(x),
-           integer = as.integer(x),
-           logical = as.logical(x),
-           character = as.character(x),
-           ## FIXME: remove as.character 
-           ordered = fct_set_levels(as.character(x), levels),
-           factor = fct_set_levels(as.character(x), levels),
-           as(x, class))
+  if (!"factor" %in% class && inherits(x, class))
+    return(x)
+  switch(class[[1]],
+         POSIXct = ,
+         POSIXlt = lubridate::as_datetime(x),
+         DATE = lubridate::as_date(x),
+         numeric = as.numeric(x),
+         integer = as.integer(x),
+         logical = as.logical(x),
+         character = as.character(x),
+         ## FIXME: remove as.character 
+         ordered = fct_set_levels(as.character(x), levels),
+         factor = fct_set_levels(as.character(x), levels),
+         as(x, class))
 }
 
 #' @export
