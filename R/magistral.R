@@ -360,6 +360,7 @@ dput_fn <- function(fn, name, con) {
 #' @export
 export.magistral.pipeline <- function(pl, name = NULL, file = "", styler = TRUE,
                                       header = TRUE, extra = character()) {
+  stopifnot(inherits(pl, "magistral.pipeline"))
   if (is.null(name))
     name <- deparse(substitute(pl))
   con <-
@@ -386,8 +387,9 @@ export.magistral.pipeline <- function(pl, name = NULL, file = "", styler = TRUE,
   pl <- environment(pl)[["PIPELINE"]]
   name <- quote_name(name)
   cat("\n", name, " <- local({\n", sep = "", file = con)
+  names <- make.unique(names(pl), "")
   for (i in seq_along(pl)) {
-    nm <- names(pl)[[i]]
+    nm <- names[[i]]
     if (inherits(pl[[i]], "magistral.pipeline")) {
       export.magistral.pipeline(pl[[i]], name = nm, file = con, styler = FALSE, header = FALSE)
     } else {
@@ -402,7 +404,7 @@ export.magistral.pipeline <- function(pl, name = NULL, file = "", styler = TRUE,
     nm <- names(pl)[[i]]
     cat("    x <- ", quote_name(nm), "(x, ...)\n", file = con, sep = "")
   }
-  cat("    x\n  }\n}) # ", name, "\n", file = con, sep = "")
+  cat("    x\n  }\n}) # -> ", name, "\n", file = con, sep = "")
   if (is.character(file)) {
     close(con)
     if (styler)
