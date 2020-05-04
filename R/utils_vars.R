@@ -12,6 +12,12 @@ fct_lumped_levels <- function(x, prop, n, other_level = "OTHER", ignore.na = TRU
 
 #' @export
 fct_set_levels <- function(x, new_levels, other_level = NULL) {
+  if (is.factor(x) && identical(levels(x), new_levels)) {
+    if (is.null(other_level)) return (x)
+    else return(structure(x,
+                          levels = structure(new_levels, other_level = .other_level),
+                          class = class(x)))
+  }
   if (length(unique(new_levels)) < length(new_levels))
     stop("'new_levels' contains duplicates")
   if (is.null(other_level))

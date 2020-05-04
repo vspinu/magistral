@@ -1,7 +1,6 @@
 #' Lightweight machine learning and data processing pipeline
 #'
 #' @rawNamespace import(rlang, except = c(modify,prepend,`:=`))
-#' @importFrom dplyr select one_of
 #' @importFrom data.table := rbindlist setkey is.data.table
 #' @keywords internal
 "_PACKAGE"

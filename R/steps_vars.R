@@ -17,6 +17,7 @@ match_vars <- function(x, vars = NULL, regex = NULL, fn = NULL, ignore.case = FA
   vars
 }
 
+#' @export
 select_vars <- function(df, vars) {
   if (length(vars) == 0)
     return(df)
@@ -51,7 +52,7 @@ vars_mem_remover <- function(x, vars = NULL, regex = NULL, fn = NULL, ignore.cas
 vars_keeper <- function(x, vars = NULL, regex = NULL, fn = NULL, ignore.case = TRUE, ...) {
   function(x, ...) {
     vars <- match_vars(x, vars, regex, fn, ignore.case, "data")
-    x[["data"]] <- select(x[["data"]], vars)
+    x[["data"]] <- select_vars(x[["data"]], vars)
     x
   }
 }
@@ -128,20 +129,20 @@ vars_memoiser <- function(x, overwrite_prototypes = NULL, ...) {
   }
   function(x, verbose = TRUE, ...) {
     stopifnot(nrow(x[["data"]]) > 0)
-    out <- x[["data"]]
+    data <- x[["data"]]
     for (nm in names(prototype)) {
       p <- prototype[[nm]]
-      v <- out[[nm]]
+      v <- data[[nm]]
       if (is.null(v)) {
         if (verbose) {
           message(sprintf("Missing variable '%s' of class '%s'", nm, class(p)))
         }
-        out[[nm]] <- p
+        data[[nm]] <- p
       } else {
-        out[[nm]] <- reclass(v, class(p), levels(p))
+        data[[nm]] <- reclass(v, class(p), levels(p))
       }
     }
-    x[["data"]] <- select(out, !!!names(prototype))
+    x[["data"]] <- select_vars(data, names(prototype))
     x
   }
 }
