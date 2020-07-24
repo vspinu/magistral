@@ -152,6 +152,41 @@ vars_memoiser <- function(x, var_prototypes = NULL, rx_prototypes = NULL, ...) {
   }
 }
 
+#' @export
+vars_nafiller <- function(x, var_prototypes = NULL, rx_prototypes = NULL, ...) {
+  if (length(unique(names(x[["data"]]))) != ncol(x[["data"]]))
+    stop("Feature names are not unique")
+  prototypes <- list()
+  for (reg in names(rx_prototypes)) {
+    for (nm in grep(reg, names(prototype), value = T))
+      prototypes[[nm]] <- rx_prototypes[[reg]]
+  }
+  for (nm in names(var_prototypes)) {
+    prototypes[[nm]] <- var_prototypes[[nm]]
+  }
+  rm(nm, reg)
+  function(x, verbose = TRUE, ...) {
+    stopifnot(nrow(x[["data"]]) > 0)
+    data <- x[["data"]]
+    for (nm in names(prototypes)) {
+      p <- prototypes[[nm]]
+      v <- data[[nm]]
+      if (is.null(v)) {
+        if (verbose) {
+          message(sprintf("Missing variable '%s' of class '%s'", nm, class(p)))
+        }
+        v <- p
+      } else {
+        v[is.na(v)] <- p
+      }
+      data[[nm]] <- v
+    }
+    x[["data"]] <- data
+    x
+  }
+}
+
+
 is.factor_or_character <- function(x) {
   is.factor(x) || is.character(x)
 }
