@@ -107,7 +107,7 @@ reclass <- function(x, class, levels) {
   switch(class[[1]],
          POSIXct = ,
          POSIXlt = lubridate::as_datetime(x),
-         DATE = lubridate::as_date(x),
+         Date = lubridate::as_date(x),
          numeric = as.numeric(x),
          integer = as.integer(x),
          logical = as.logical(x),
@@ -115,6 +115,7 @@ reclass <- function(x, class, levels) {
          ## FIXME: remove as.character 
          ordered = fct_set_levels(as.character(x), levels),
          factor = fct_set_levels(as.character(x), levels),
+         integer64 = bit64::as.integer64(x),
          as(x, class))
 }
 
