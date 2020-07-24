@@ -357,7 +357,7 @@ dput_fn <- function(fn, name, con) {
 }
 
 #' @export
-export.magistral.pipeline <- function(pl, name = NULL, file = "", styler = TRUE,
+export.magistral.pipeline <- function(pl, name = NULL, file = "", styler = FALSE,
                                       header = TRUE, extra = character()) {
   stopifnot(inherits(pl, "magistral.pipeline"))
   if (is.null(name))

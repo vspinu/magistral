@@ -120,19 +120,23 @@ reclass <- function(x, class, levels) {
 }
 
 #' @export
-vars_memoiser <- function(x, overwrite_prototypes = NULL, ...) {
+vars_memoiser <- function(x, var_prototypes = NULL, rx_prototypes = NULL, ...) {
   if (length(unique(names(x[["data"]]))) != ncol(x[["data"]]))
     stop("Feature names are not unique")
-  prototype <- extract_prototype(x[["data"]])
-  for (reg in names(overwrite_prototypes)) {
+  prototypes <- extract_prototype(x[["data"]])
+  for (reg in names(rx_prototypes)) {
     for (nm in grep(reg, names(prototype), value = T))
-      prototype[[nm]] <- overwrite_prototypes[[reg]]
+      prototypes[[nm]] <- rx_prototypes[[reg]]
   }
+  for (nm in names(var_prototypes)) {
+    prototypes[[nm]] <- var_prototypes[[nm]]
+  }
+  rm(nm, reg)
   function(x, verbose = TRUE, ...) {
     stopifnot(nrow(x[["data"]]) > 0)
     data <- x[["data"]]
-    for (nm in names(prototype)) {
-      p <- prototype[[nm]]
+    for (nm in names(prototypes)) {
+      p <- prototypes[[nm]]
       v <- data[[nm]]
       if (is.null(v)) {
         if (verbose) {
@@ -143,7 +147,7 @@ vars_memoiser <- function(x, overwrite_prototypes = NULL, ...) {
         data[[nm]] <- reclass(v, class(p), levels(p))
       }
     }
-    x[["data"]] <- select_vars(data, names(prototype))
+    x[["data"]] <- select_vars(data, names(prototypes))
     x
   }
 }
