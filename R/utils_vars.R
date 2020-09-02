@@ -60,16 +60,76 @@ boring_vars <- function(df, min_vals = 2, max_vals = Inf, omit_na = TRUE,
 
 ## Prototypes
 
+#' Extract reference value from a vector
 #' @export
-extract_prototype <- function(dt) {
+refval <- function(x, type = c("median", "mean", "min", "min-", "max", "max+")) {
+  type <- match.arg(type)
+  out <-
+    if (is.character(x) || is.factor(x)) {
+      switch(type,
+             median = , mean = {
+               tbl <- base::table(x, exclude = c(NA, NaN))
+               names(tbl)[which.max(tbl)]
+             },
+             min = , "min-" = {
+               if (is.factor(x)) levels(x)[[1]] else x[[1]]
+             },
+             max = , "max+" = {
+               if (is.factor(x)) levels(x)[[length(levels(x))]] else x[[length(x)]]
+             })
+    } else {
+      switch(type,
+             median = median(x, na.rm = TRUE),
+             mean = mean(x, na.rm = TRUE),
+             min = min(x, na.rm = TRUE),
+             "min-" = {
+               range <- range(x, na.rm = TRUE)
+               range[[1]] - (range[[2]] - range[[1]])*.01
+             },
+             max = max(x, na.rm = TRUE),
+             "max+" = {
+               range <- range(x, na.rm = TRUE)
+               range[[2]] + (range[[2]] - range[[1]])*.01
+             })
+    }
+  reclass(out, class(x), levels(x))
+}
+
+#' @rdname refval
+#' @export
+refval_extractor <- function(type = c("median", "mean", "min", "min-", "max", "max+")) {
+  function(x, nm) {
+    refval(x, type = type)
+  }
+}
+
+
+#' @export
+repval_mean <- function(x, nm) {
+  out <-
+    if (is.character(x) || is.factor(x))
+      median(x, na.rm = T)
+    else
+      mean(x, na.rm = T)
+  reclass(out, class(x), levels(x))
+}
+
+default_prototype_extractor <- function(x, nm) {
+  NA
+}
+
+#' @export
+extract_prototypes <- function(dt, nm, extractor = NULL) {
+  extractor <- extractor %||% default_prototype_extractor
   prot <- dt[1, ]
+  nms <- names(prot)
   for (i in seq_along(prot))
-    prot[[1, i]] <- NA
+    prot[[1, i]] <- extractor(dt[[i]], nms[[i]])
   as.list(prot)
 }
 
 #' @export
-fill_prototype <- function(dt, prototype) {
+fill_prototypes <- function(dt, prototype) {
   for (nm in names(prototype)) {
     x <- dt[[nm]]
     p <- prototype[[nm]]

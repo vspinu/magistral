@@ -119,19 +119,30 @@ reclass <- function(x, class, levels) {
          as(x, class))
 }
 
-#' @export
-vars_memoiser <- function(x, var_prototypes = NULL, rx_prototypes = NULL, ...) {
-  if (length(unique(names(x[["data"]]))) != ncol(x[["data"]]))
-    stop("Feature names are not unique")
-  prototypes <- extract_prototype(x[["data"]])
+update_prototypes <- function(data, prototypes,
+                              var_prototypes, rx_prototypes,
+                              prototype_extractor = NULL) {
+  if (is.function(rx_prototypes))
+    rx_prototypes <- list(".*" = rx_prototypes)
   for (reg in names(rx_prototypes)) {
-    for (nm in grep(reg, names(prototype), value = T))
-      prototypes[[nm]] <- rx_prototypes[[reg]]
+    p <- rx_prototypes[[reg]]
+    for (nm in grep(reg, names(data), value = T))
+      prototypes[[nm]] <- if (is.function(p)) p(data[[nm]], nm) else p
   }
   for (nm in names(var_prototypes)) {
-    prototypes[[nm]] <- var_prototypes[[nm]]
+    p <- var_prototypes[[reg]]
+    prototypes[[nm]] <- if (is.function(p)) p(data[[nm]], nm) else p
   }
-  rm(nm, reg)
+  prototypes
+}
+
+#' @export
+vars_memoiser <- function(x, var_prototypes = NULL, rx_prototypes = NULL,
+                          prototype_extractor = NULL, ...) {
+  if (length(unique(names(x[["data"]]))) != ncol(x[["data"]]))
+    stop("Feature names are not unique")
+  prototypes <- extract_prototypes(x[["data"]], prototype_extractor)
+  prototypes <- update_prototypes(x[["data"]], prototypes, var_prototypes, rx_prototypes, prototype_extractor)
   function(x, verbose = TRUE, ...) {
     stopifnot(nrow(x[["data"]]) > 0)
     data <- x[["data"]]
@@ -152,19 +163,12 @@ vars_memoiser <- function(x, var_prototypes = NULL, rx_prototypes = NULL, ...) {
   }
 }
 
+# Like memoizer but doesn't reclass (should?) and doesn't select at the end
 #' @export
 vars_nafiller <- function(x, var_prototypes = NULL, rx_prototypes = NULL, ...) {
   if (length(unique(names(x[["data"]]))) != ncol(x[["data"]]))
     stop("Feature names are not unique")
-  prototypes <- list()
-  for (reg in names(rx_prototypes)) {
-    for (nm in grep(reg, names(prototype), value = T))
-      prototypes[[nm]] <- rx_prototypes[[reg]]
-  }
-  for (nm in names(var_prototypes)) {
-    prototypes[[nm]] <- var_prototypes[[nm]]
-  }
-  rm(nm, reg)
+  prototypes <- update_prototypes(x[["data"]], list(), var_prototypes, rx_prototypes)
   function(x, verbose = TRUE, ...) {
     stopifnot(nrow(x[["data"]]) > 0)
     data <- x[["data"]]
@@ -185,7 +189,6 @@ vars_nafiller <- function(x, var_prototypes = NULL, rx_prototypes = NULL, ...) {
     x
   }
 }
-
 
 is.factor_or_character <- function(x) {
   is.factor(x) || is.character(x)
