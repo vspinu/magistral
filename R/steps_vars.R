@@ -130,7 +130,7 @@ update_prototypes <- function(data, prototypes,
       prototypes[[nm]] <- if (is.function(p)) p(data[[nm]], nm) else p
   }
   for (nm in names(var_prototypes)) {
-    p <- var_prototypes[[reg]]
+    p <- var_prototypes[[nm]]
     prototypes[[nm]] <- if (is.function(p)) p(data[[nm]], nm) else p
   }
   prototypes
