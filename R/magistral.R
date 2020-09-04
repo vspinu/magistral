@@ -255,7 +255,7 @@ pl <- function(..., .pl = list(), .wrappers = NULL) {
 .ml_datum <- function(x, loc, split, vars) {
   if (is.null(split)) {
     if (is.null(vars)) x[[loc]]
-    else select(x[[loc]], one_of(vars))
+    else select_vars(x[[loc]], vars)
   } else {
     if (is.character(split)) {
       stopifnot(length(split) == 1)
@@ -265,7 +265,7 @@ pl <- function(..., .pl = list(), .wrappers = NULL) {
       ix <- split
     }
     if (is.null(vars)) x[[loc]][ix, ]
-    else select(x[[loc]], one_of(vars))[ix, ]
+    else select_vars(x[[loc]], vars)[ix, ]
   } 
 }
 
