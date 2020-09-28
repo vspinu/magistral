@@ -81,7 +81,6 @@ step_name <- function(step) {
 }
 
 normalize_pipeline <- function(pl, env = parent.frame()) {
-  fn_symbol <- as.symbol("function")
   names <- names(pl)
   for (ix in seq_along(pl)) {
     obj <- pl[[ix]]
@@ -90,7 +89,10 @@ normalize_pipeline <- function(pl, env = parent.frame()) {
       names[[ix]] <- step_name(obj)
     }
     if (is_call(obj)) {
-      if (identical(obj[[1]], fn_symbol)) {
+      call <- obj[[1]]
+      if (identical(call, as.symbol("function")) ||
+          identical(call, as.symbol("if")) || 
+          identical(call, as.symbol("switch"))) {
         ## unquote inline functions
         pl[[ix]] <- eval(obj, envir = env)
       } else {
