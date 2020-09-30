@@ -82,6 +82,7 @@ step_name <- function(step) {
 
 normalize_pipeline <- function(pl, env = parent.frame()) {
   names <- names(pl)
+  has_nulls <- FALSE
   for (ix in seq_along(pl)) {
     obj <- pl[[ix]]
     ## set missing name
@@ -94,7 +95,12 @@ normalize_pipeline <- function(pl, env = parent.frame()) {
           identical(call, as.symbol("if")) || 
           identical(call, as.symbol("switch"))) {
         ## unquote inline functions
-        pl[[ix]] <- eval(obj, envir = env)
+        if (is.null(out <- eval(obj, envir = env))) {
+          pl[ix] <- list(NULL)
+          has_nulls <- TRUE
+        } else {
+          pl[[ix]] <- out
+        }
       } else {
         ## check for all named arguments of expressions
         if (!all(nzchar(call_args_names(obj)))) {
@@ -104,6 +110,9 @@ normalize_pipeline <- function(pl, env = parent.frame()) {
     }
   }
   names(pl) <- make.unique(names)
+  if (has_nulls) {
+    pl <- pl[!sapply(pl, is.null)]
+  }
   pl
 }
 
